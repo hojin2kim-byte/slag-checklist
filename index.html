@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f2937"><title>Slag System - мобильный чек-лист</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#0f172a;font-family:Arial,"Noto Sans KR",sans-serif}
+header{position:sticky;top:0;z-index:20;background:#1f2937;color:white;padding:10px}
+h1{font-size:17px;margin:0 0 7px}select,input,textarea,button{font:inherit}
+select{width:100%;padding:9px;border-radius:7px;border:1px solid #94a3b8}
+.bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}button{border:0;border-radius:7px;padding:9px;background:#475569;color:white;font-weight:700}
+.pdf{background:#166534}.clearall{background:#991b1b}
+main{max-width:1100px;margin:auto;padding:9px}.equip{background:#fff;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden}
+h2{font-size:16px;margin:0;padding:10px;background:#e2e8f0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px;border-bottom:1px solid #cbd5e1}
+.meta label{font-size:11px;color:#64748b;display:block;margin-bottom:3px}.meta input{width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:6px}
+.item{padding:9px;border-bottom:1px solid #e2e8f0}.rowtop{display:grid;grid-template-columns:28px 1fr;gap:7px}.no{font-weight:700;color:#475569}
+.ru{font-size:13px;font-weight:700;line-height:1.35}.ko{font-size:12px;color:#475569;margin-top:3px}
+.status{display:flex;gap:5px;margin:7px 0}.status button{flex:1;padding:6px;background:white;color:#334155;border:1px solid #cbd5e1}
+.status .ok.active{background:#dcfce7;color:#166534;border-color:#16a34a}.status .dev.active{background:#fef3c7;color:#92400e;border-color:#f59e0b}.status .act.active{background:#fee2e2;color:#991b1b;border-color:#dc2626}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:7px}.photo{border:1px dashed #94a3b8;border-radius:7px;padding:5px;text-align:center;background:#f8fafc;min-height:115px}
+.photo img{width:100%;height:90px;object-fit:cover;border-radius:5px}.pl{font-size:10px;font-weight:700;color:#475569;margin-bottom:4px}
+.cam{width:100%;background:#2563eb;padding:7px;font-size:12px}.del{background:#64748b;padding:4px 7px;font-size:11px;margin-top:3px}
+textarea{width:100%;min-height:55px;margin-top:7px;padding:7px;border:1px solid #cbd5e1;border-radius:6px}
+.time{font-size:11px;color:#64748b;margin-top:5px}.time input{padding:4px}
+#notice{font-size:11px;color:#475569;text-align:center;padding:8px}
+#printArea{display:none}
+@media(min-width:800px){.item{display:grid;grid-template-columns:1.1fr 1fr;gap:12px}}
+@media print{
+ @page{size:A4 landscape;margin:6mm}
+ html,body{width:100%;margin:0;padding:0}
+ section.equip{width:100%;height:calc(210mm - 12mm);box-sizing:border-box;page-break-before:always;break-before:page;overflow:hidden}
+ section.equip:first-of-type{page-break-before:auto;break-before:auto}
+ 
+ body{background:white;font-size:9pt}header,#app,#notice{display:none!important}#printArea{display:block}
+ .phead{font-size:18pt;font-weight:700;margin-bottom:3mm}.pmeta{font-size:9pt;margin-bottom:4mm}
+ .pequip{page-break-before:always}.pequip:first-child{page-break-before:auto}
+ .ptitle{font-size:14pt;font-weight:700;background:#eee;padding:3mm;margin-bottom:2mm}
+ .prow{display:grid;grid-template-columns:7mm 1fr 85mm;gap:2mm;border-bottom:1px solid #aaa;padding:2mm 0;break-inside:avoid}
+ .pno{font-weight:700}.pru{font-weight:700;font-size:9pt}.pko{font-size:8pt;color:#444;margin-top:1mm}
+ .pstatus{font-size:8pt;margin-top:1mm}.paction{font-size:8pt;margin-top:1mm}
+ .pphotos{display:grid;grid-template-columns:1fr 1fr;gap:2mm}.pphoto img{width:100%;height:30mm;object-fit:cover}
+ .pphoto .cap{font-size:7pt;text-align:center}.pempty{height:30mm;border:1px dashed #999;font-size:7pt;text-align:center;padding-top:12mm}
+}
+</style></head>
+<body>
+<header>
+<h1>Slag System / 모바일 사진 체크리스트</h1>
+<select id="cat"></select><select id="equip" style="margin-top:6px"></select>
+<div class="bar"><button id="prev">이전 설비</button><button id="next">다음 설비</button>
+<button class="pdf" id="pdf">📄 전체 점검결과 PDF 저장</button><button class="clearall" id="clear">현재 설비 입력 초기화</button></div>
+</header><main id="app"></main><div id="notice">사진은 휴대폰에 저장됩니다. PDF 저장 시 사진도 함께 출력됩니다.</div>
+<div id="printArea"></div>
+<script>
+const DATA={"belt": {"title": "Ленточные конвейеры / 벨트 컨베이어", "equipment": ["Ленточный конвейер №1 / 벨트 컨베이어 #1", "Ленточный конвейер №2 / 벨트 컨베이어 #2", "Ленточный конвейер №3 / 벨트 컨베이어 #3", "Ленточный конвейер №4 / 벨트 컨베이어 #4", "Ленточный конвейер №5 / 벨트 컨베이어 #5", "Ленточный конвейер №6 / 벨트 컨베이어 #6", "Ленточный конвейер №7 / 벨트 컨베이어 #7", "Ленточный конвейер №8 / 벨트 컨베이어 #8", "Ленточный конвейер №9 / 벨트 컨вейер #9", "Ленточный конвейер №10 / 벨트 컨베이어 #10", "Ленточный конвейер №11 / 벨트 컨베이어 #11", "Ленточный конвейер №12 / 벨트 컨베이어 #12", "Ленточный конвейер №13 / 벨트 컨베이어 #13", "Ленточный конвейер №14 / 벨트 컨베이어 #14", "Разгрузочный конвейер K2 / Discharge Conveyor K2", "Разгрузочный конвейер K3 / Discharge Conveyor K3", "Двухходовой конвейер №1 / Two-way Conveyor #1", "Конвейер отходов №1 / Waste Conveyor #1", "Конвейер отходов №2 / Waste Conveyor #2"], "rows": [["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить падение шлака из Inlet Chute и в хвостовой части", "Inlet Chute 및 테일부 슬래그 낙하 여부 확인"], ["Проверить наличие посторонних предметов в зоне хвостового барабана", "테일 드럼부 이물질 확인"], ["Проверить работу сигнальной лампы", "경고등 작동 확인"], ["Проверить смещение и деформацию юбочного уплотнения (Skirt)", "Skirt 밀림 및 변형 여부 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить уровень масла и наличие утечек в мотор-редукторе", "모터 기어박스 오일 레벨 및 누유 점검"], ["Проверить шум головного очистителя и накопление шлака", "헤드 크리너 소음 및 슬래그 쌓임 점검"], ["Проверить наличие шлака в зоне Bend Pulley для защиты от износа", "Bend Pulley 마모 방지를 위한 슬래그 적재 확인"], ["Проверить затяжку болтов опоры головной части", "헤드부 서포터 볼트 체결 상태 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "magnet": {"title": "Магнитные сепараторы / 자력선별기", "equipment": ["Магнитный сепаратор №1 / 자력선별기 #1", "Магнитный сепаратор №2 / 자력선별기 #2", "Магнитный сепаратор №3 / 자력선별기 #3", "Магнитный сепаратор №4 / 자력선별기 #4", "Магнитный сепаратор №5 / 자력선별기 #5"], "rows": [["Проверить засорение Inlet/Outlet Chute", "Inlet/Outlet Chute 막힘 여부 확인"], ["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить наличие посторонних предметов в зоне приводной цепи", "구동 체인부 이물질 확인"], ["Проверить состояние смазки приводной цепи", "구동 체인 그리스 상태 확인"], ["Проверить посторонний шум вибрационного двигателя", "진동 모터 이상소음 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"], ["Проверить затяжку болтов", "볼트 체결 상태 확인"], ["Проверить наличие смазки на резьбовой части талрепа", "턴버클 나사부 그리스 상태 확인"], ["Проверить соединение талрепа и цепи", "턴버클-체인 연결 상태 확인"]]}, "eddy": {"title": "Вихретоковые сепараторы / 비철분리기", "equipment": ["Вихретоковый сепаратор №1 / 비철분리기 #1", "Вихретоковый сепаратор №2 / 비철분리기 #2", "Вихретоковый сепаратор №3 / 비철분리기 #3"], "rows": [["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить повреждение ленты", "벨트 손상 여부 확인"], ["Проверить неисправность двигателя магнитной системы", "자력 시스템 모터 이상 여부 확인"], ["Проверить затяжку болтов двигателя", "모터 볼트 체결 상태 확인"], ["Проверить угол пластины разделения цветных металлов", "비철분리 플레이트 각도 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "screen": {"title": "Вибрационные грохоты / 진동스크린", "equipment": ["Вибрационный грохот №1 / 진동스크린 #1", "Вибрационный грохот №2 / 진동스크린 #2", "Вибрационный грохот №3 / 진동스크린 #3", "Вибрационный грохот №4 / 진동스크린 #4", "Вибрационный грохот №5 / 진동스크린 #5"], "rows": [["Проверить затяжку болтов вибрационного двигателя", "진동 모터 볼트 체결 상태 확인"], ["Проверить повреждение сетки/экрана", "스크린 손상 여부 확인"], ["Проверить наличие посторонних предметов во входном желобе", "Inlet Chute 이물질 확인"], ["Проверить наличие посторонних предметов в выходном желобе", "Outlet Chute 이물질 확인"], ["Проверить резиновый демпфер", "고무 댐퍼 상태 확인"], ["Проверить болты вибрационной опоры", "진동 서포트 볼트 상태 확인"], ["Проверить тент и накопление шлака под ним", "타포린 및 하부 슬래그 쌓임 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "feeder": {"title": "Вибрационные питатели / 진동피더", "equipment": ["Вибрационный питатель №1 / 진동피더 #1", "Вибрационный питатель №7 / 진동피더 #7"], "rows": [["Проверить затяжку болтов вибрационного двигателя", "진동 모터 볼트 체결 상태 확인"], ["Проверить и очистить затвердевший шлак", "고착 슬래그 확인 및 청소"], ["Проверить наличие посторонних предметов во входном желобе", "Inlet Chute 이물질 확인"], ["Проверить наличие посторонних предметов в выходном желобе", "Outlet Chute 이물질 확인"], ["Проверить повреждение резинового демпфера", "고무 댐퍼 손상 여부 확인"], ["Проверить болты вибрационной опоры", "진동 서포트 볼트 상태 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "air": {"title": "Воздушный сепаратор, рукавный фильтр / 에어 세퍼레이터, 백필터", "equipment": ["Воздушный сепаратор, рукавный фильтр (Bag Filter) / 에어 세퍼레이터, 백필터"], "rows": [["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить падение шлака в хвостовой части", "테일부 슬래그 낙하 여부 확인"], ["Проверить сход ремня вентилятора с оси", "팬 벨트 사행 여부 확인"], ["Проверить работу вентилятора", "팬 작동 상태 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить наличие посторонних предметов на ленте", "벨트 위 이물질 확인"], ["Проверить уровень масла и наличие утечек в мотор-редукторе", "모터 기어박스 오일 레벨 및 누유 점검"], ["Проверить затяжку болтов опоры", "서포트 볼트 체결 상태 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "crusher": {"title": "Валковые дробилки / 롤러 크러셔", "equipment": ["Валковая дробилка №1 / 롤러 크러셔 #1", "Валковая дробилка №2 / 롤러 크러셔 #2"], "rows": [["Проверить наличие постороннего шума внутри во время работы", "운전 중 내부 이상소음 확인"], ["Проверить разлет шлака", "슬래그 비산 여부 확인"], ["Проверить состояние смазки приводной цепи", "구동 체인 그리스 상태 확인"], ["Проверить затяжку болтов", "볼트 체결 상태 확인"], ["Проверить соединительные болты валов дробилки", "크러셔 롤러 샤프트 연결 볼트 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}};;
+const DBNAME="SlagChecklistPhotos_v2",STORE="photos";let db=null,catKey=Object.keys(DATA)[0],idx=0,state={};
+function stateKey(){return "slag_state_"+catKey}function metaKey(){return "slag_meta_"+catKey}
+function rowState(r){let k=idx+"_"+r;if(!state[k])state[k]={status:"",action:"",time:""};return state[k]}
+function openDB(){return new Promise((res,rej)=>{let q=indexedDB.open(DBNAME,1);q.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains(STORE))e.target.result.createObjectStore(STORE,{keyPath:"id"})};q.onsuccess=e=>{db=e.target.result;res()};q.onerror=()=>rej(q.error)})}
+function pid(c,e,r,t){return c+"_"+e+"_"+r+"_"+t}
+function getPhoto(id){return new Promise(res=>{let q=db.transaction(STORE,"readonly").objectStore(STORE).get(id);q.onsuccess=()=>res(q.result?.blob||null);q.onerror=()=>res(null)})}
+function putPhoto(id,b){return new Promise((res,rej)=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).put({id,blob:b});q.onsuccess=res;q.onerror=()=>rej(q.error)})}
+function delPhoto(id){return new Promise(res=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).delete(id);q.onsuccess=res;q.onerror=res})}
+function load(){try{state=JSON.parse(localStorage.getItem(stateKey())||"{}")}catch(e){state={}}}
+function save(){localStorage.setItem(stateKey(),JSON.stringify(state));let m={date:document.getElementById("date")?.value||"",checker:document.getElementById("checker")?.value||""};localStorage.setItem(metaKey(),JSON.stringify(m))}
+function fillCats(){let s=document.getElementById("cat");s.innerHTML=Object.keys(DATA).map(k=>`<option value="${k}" ${k===catKey?"selected":""}>${DATA[k].title}</option>`).join("")}
+function fillEquip(){let s=document.getElementById("equip");s.innerHTML=DATA[catKey].equipment.map((x,i)=>`<option value="${i}" ${i===idx?"selected":""}>${x}</option>`).join("")}
+async function render(){fillCats();fillEquip();let d=DATA[catKey],m=JSON.parse(localStorage.getItem(metaKey())||"{}");
+let h=`<section class="equip"><h2>${d.title}</h2><div class="meta"><div><label>점검일 / Дата</label><input id="date" type="date" value="${m.date||""}"></div><div><label>점검자 / Проверяющий</label><input id="checker" value="${m.checker||""}" placeholder="이름"></div></div>`;
+d.rows.forEach((it,r)=>{let s=rowState(r);h+=`<div class="item"><div><div class="rowtop"><div class="no">${r+1}</div><div><div class="ru">${it[0]}</div><div class="ko">${it[1]}</div></div></div>
+<div class="status"><button class="ok ${s.status==="ok"?"active":""}" data-st="ok" data-r="${r}">정상 ○</button><button class="dev ${s.status==="dev"?"active":""}" data-st="dev" data-r="${r}">이상 △</button><button class="act ${s.status==="act"?"active":""}" data-st="act" data-r="${r}">조치 X</button></div></div>
+<div class="photos"><div class="photo" id="b${r}"><div class="pl">문제 발생 사진 / BEFORE</div><input id="before${r}" type="file" accept="image/*" capture="environment" hidden><button class="cam" data-p="before" data-r="${r}">📷 사진 촬영</button></div>
+<div class="photo" id="a${r}"><div class="pl">조치 후 사진 / AFTER</div><input id="after${r}" type="file" accept="image/*" capture="environment" hidden><button class="cam" data-p="after" data-r="${r}">📷 사진 촬영</button></div></div>
+<textarea data-a="${r}" placeholder="조치내용 / Содержание выполненных мер">${s.action||""}</textarea><div class="time">점검시간 / Время проверки: <input type="time" data-t="${r}" value="${s.time||""}"></div></div>`});
+h+="</section>";document.getElementById("app").innerHTML=h;
+document.getElementById("date").onchange=save;document.getElementById("checker").oninput=save;
+document.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{rowState(+b.dataset.r).status=b.dataset.st;save();render()});
+document.querySelectorAll("[data-a]").forEach(x=>x.oninput=()=>{rowState(+x.dataset.a).action=x.value;save()});
+document.querySelectorAll("[data-t]").forEach(x=>x.onchange=()=>{rowState(+x.dataset.t).time=x.value;save()});
+document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>document.getElementById(b.dataset.p+b.dataset.r).click());
+document.querySelectorAll('input[type="file"]').forEach(x=>x.onchange=()=>takePhoto(x));await restore();
+}
+async function takePhoto(inp){if(!inp.files?.[0])return;let r=+inp.id.match(/\d+$/)[0],t=inp.id.startsWith("before")?"before":"after";await putPhoto(pid(catKey,idx,r,t),inp.files[0]);await render()}
+async function restore(){for(let r=0;r<DATA[catKey].rows.length;r++)for(let t of ["before","after"]){let b=await getPhoto(pid(catKey,idx,r,t));if(!b)continue;let u=URL.createObjectURL(b),box=document.getElementById((t==="before"?"b":"a")+r);box.innerHTML=`<div class="pl">${t==="before"?"문제 발생 사진 / BEFORE":"조치 후 사진 / AFTER"}</div><img src="${u}"><button class="del" data-del="${t}" data-r="${r}">사진 삭제</button><input id="${t}${r}" type="file" accept="image/*" capture="environment" hidden><button class="cam" data-re="${t}" data-r="${r}">📷 다시 촬영</button>`;box.querySelector("[data-del]").onclick=async()=>{await delPhoto(pid(catKey,idx,r,t));render()};box.querySelector("[data-re]").onclick=()=>document.getElementById(t+r).click();box.querySelector('input[type=file]').onchange=e=>takePhoto(e.target)}}
+async function blobDataURL(blob){
+ return new Promise((resolve,reject)=>{
+  const fr=new FileReader();
+  fr.onload=()=>resolve(fr.result);
+  fr.onerror=reject;
+  fr.readAsDataURL(blob);
+ });
+}
+function escPrint(x){
+ return String(x||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+async function printPDF(){
+ const meta=JSON.parse(localStorage.getItem(metaKey())||"{}");
+ let html=`<!doctype html><html lang="ko"><head><meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <title>Slag System - 점검 결과</title>
+ <style>
+ @page{size:A4 landscape;margin:5mm}
+ *{box-sizing:border-box}
+ html,body{margin:0;padding:0;width:100%;font-family:Arial,"Noto Sans KR",sans-serif;color:#111}
+ .top{margin-bottom:2mm}.top h1{font-size:12pt;margin:0 0 1mm}.meta{font-size:7pt}
+ .equip{width:100%;height:200mm;page-break-before:always;break-before:page;overflow:hidden}
+ .equip:first-of-type{page-break-before:auto;break-before:auto}
+ .etitle{font-size:10.5pt;font-weight:700;border:1px solid #222;padding:1.2mm 1.5mm;margin-bottom:1mm}
+ table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:6.1pt}
+ th,td{border:.5px solid #555;padding:.55mm;vertical-align:middle}
+ th{font-size:5.7pt;text-align:center;font-weight:700;height:7.5mm}
+ .no{width:6mm;text-align:center}.item{width:92mm}.mark{width:12mm;text-align:center}.time{width:17mm}.action{width:58mm}
+ .item .ru{font-weight:700;line-height:1.08}.item .ko{font-size:5.7pt;color:#444;line-height:1.08;margin-top:.3mm}
+ .markcell{font-size:9pt;text-align:center;height:12mm}.timecell{height:12mm}.actioncell{height:12mm;white-space:pre-wrap}
+ .pics{display:flex;gap:1mm;align-items:center;margin-top:.5mm}.pics img{width:22mm;height:9mm;object-fit:cover;border:1px solid #888}.pcap{font-size:5pt}
+ .foot{font-size:5.5pt;margin-top:1mm}
+ .printbtn{position:fixed;right:8px;top:8px;padding:7px 10px;border:0;border-radius:5px;background:#166534;color:#fff;font-weight:700}
+ @media print{.printbtn{display:none}}
+ </style></head><body>
+ <button class="printbtn" onclick="window.print()">📄 PDF로 저장 / 인쇄</button>
+ <div class="top"><h1>Slag System — 점검 결과 / Результаты проверки</h1>
+ <div class="meta">점검일 / Дата: ${escPrint(meta.date)}　　점검자 / Проверяющий: ${escPrint(meta.checker)}</div></div>`;
+
+ for(const ck of Object.keys(DATA)){
+   const d=DATA[ck];
+   let saved={};
+   try{saved=JSON.parse(localStorage.getItem("slag_state_"+ck)||"{}")}catch(e){}
+   for(let e=0;e<d.equipment.length;e++){
+     html+=`<section class="equip"><div class="etitle">${escPrint(d.equipment[e])}</div>
+     <table><thead><tr>
+       <th class="no">№</th><th class="item">Проверяемый пункт / 점검 항목</th>
+       <th class="mark">Норма ○<br>정상 ○</th><th class="mark">Отклонение △<br>이상 △</th>
+       <th class="mark">Мера X<br>조치 X</th><th class="time">Время проверки<br>점검시간</th>
+       <th class="action">Содержание выполненных мер / 조치내용<br>사진 / Фото</th>
+     </tr></thead><tbody>`;
+     for(let r=0;r<d.rows.length;r++){
+       const st=saved[e+"_"+r]||{};
+       const bb=await getPhoto(pid(ck,e,r,"before"));
+       const aa=await getPhoto(pid(ck,e,r,"after"));
+       const bu=bb?await blobDataURL(bb):"";
+       const au=aa?await blobDataURL(aa):"";
+       html+=`<tr>
+        <td class="no">${r+1}</td>
+        <td class="item"><div class="ru">${escPrint(d.rows[r][0])}</div><div class="ko">${escPrint(d.rows[r][1])}</div></td>
+        <td class="markcell">${st.status==="ok"?"●":""}</td>
+        <td class="markcell">${st.status==="dev"?"●":""}</td>
+        <td class="markcell">${st.status==="act"?"●":""}</td>
+        <td class="timecell">${escPrint(st.time)}</td>
+        <td class="actioncell">${escPrint(st.action)}
+          ${(bu||au)?`<div class="pics">${bu?`<div><img src="${bu}"><div class="pcap">BEFORE / 문제 발생</div></div>`:""}${au?`<div><img src="${au}"><div class="pcap">AFTER / 조치 후</div></div>`:""}</div>`:""}
+        </td></tr>`;
+     }
+     html+=`</tbody></table><div class="foot">정상 ○ / 이상 △ / 조치 X　　※ 저장된 BEFORE / AFTER 사진은 조치내용란에 함께 출력됩니다.</div></section>`;
+   }
+ }
+ html+="</body></html>";
+ const w=window.open("","_blank");
+ if(!w){alert("새 창이 차단되었습니다. 브라우저에서 팝업/새 창을 허용해 주세요.");return;}
+ w.document.open();w.document.write(html);w.document.close();
+}
+document.getElementById("cat").onchange=async e=>{catKey=e.target.value;idx=0;load();await render()};
+document.getElementById("equip").onchange=async e=>{idx=+e.target.value;load();await render()};
+document.getElementById("prev").onclick=async()=>{idx=(idx-1+DATA[catKey].equipment.length)%DATA[catKey].equipment.length;load();await render()};
+document.getElementById("next").onclick=async()=>{idx=(idx+1)%DATA[catKey].equipment.length;load();await render()};
+document.getElementById("pdf").onclick=printPDF;
+document.getElementById("clear").onclick=async()=>{if(!confirm("현재 설비의 입력과 사진을 삭제할까요?"))return;localStorage.removeItem(stateKey());for(let r=0;r<DATA[catKey].rows.length;r++)for(let t of ["before","after"])await delPhoto(pid(catKey,idx,r,t));load();render()};
+window.onafterprint=()=>{document.body.classList.remove("printing");document.getElementById("printArea").innerHTML=""};
+(async()=>{await openDB();load();await render()})();
+</script></body></html>
