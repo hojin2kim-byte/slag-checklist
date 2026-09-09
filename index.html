@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f2937"><title>Slag System - мобильный чек-лист</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#0f172a;font-family:Arial,"Noto Sans KR",sans-serif}
+header{position:sticky;top:0;z-index:20;background:#1f2937;color:white;padding:10px}
+h1{font-size:17px;margin:0 0 7px}select,input,textarea,button{font:inherit}
+select{width:100%;padding:9px;border-radius:7px;border:1px solid #94a3b8}
+.bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}button{border:0;border-radius:7px;padding:9px;background:#475569;color:white;font-weight:700}
+.pdf{background:#166534}.clearall{background:#991b1b}
+main{max-width:1100px;margin:auto;padding:9px}.equip{background:#fff;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden}
+h2{font-size:16px;margin:0;padding:10px;background:#e2e8f0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px;border-bottom:1px solid #cbd5e1}
+.meta label{font-size:11px;color:#64748b;display:block;margin-bottom:3px}.meta input{width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:6px}
+.item{padding:9px;border-bottom:1px solid #e2e8f0}.rowtop{display:grid;grid-template-columns:28px 1fr;gap:7px}.no{font-weight:700;color:#475569}
+.ru{font-size:13px;font-weight:700;line-height:1.35}.ko{font-size:12px;color:#475569;margin-top:3px}
+.status{display:flex;gap:5px;margin:7px 0}.status button{flex:1;padding:6px;background:white;color:#334155;border:1px solid #cbd5e1}
+.status .ok.active{background:#dcfce7;color:#166534;border-color:#16a34a}.status .dev.active{background:#fef3c7;color:#92400e;border-color:#f59e0b}.status .act.active{background:#fee2e2;color:#991b1b;border-color:#dc2626}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:7px}.photo{border:1px dashed #94a3b8;border-radius:7px;padding:5px;text-align:center;background:#f8fafc;min-height:115px}
+.photo img{width:100%;height:90px;object-fit:contain;background:#e5e7eb;border-radius:5px}.pl{font-size:10px;font-weight:700;color:#475569;margin-bottom:4px}
+.cam{width:100%;background:#2563eb;padding:7px;font-size:12px}.gallery{width:100%;background:#0f766e;padding:7px;font-size:12px;margin-top:4px}.del{background:#64748b;padding:4px 7px;font-size:11px;margin-top:3px}
+textarea{width:100%;min-height:55px;margin-top:7px;padding:7px;border:1px solid #cbd5e1;border-radius:6px}
+.time{font-size:11px;color:#64748b;margin-top:5px}.time input{padding:4px}
+#notice{font-size:11px;color:#475569;text-align:center;padding:8px}
+#printArea{display:none}
+@media(min-width:800px){.item{display:grid;grid-template-columns:1.1fr 1fr;gap:12px}}
+@media print{
+ @page{size:A4 portrait;margin:6mm}
+ html,body{width:100%;margin:0;padding:0}
+ section.equip{width:100%;height:calc(210mm - 12mm);box-sizing:border-box;page-break-before:always;break-before:page;overflow:hidden}
+ section.equip:first-of-type{page-break-before:auto;break-before:auto}
+ 
+ body{background:white;font-size:9pt}header,#app,#notice{display:none!important}#printArea{display:block}
+ .phead{font-size:20pt;font-weight:700;margin-bottom:3mm}.pmeta{font-size:14pt;margin-bottom:4mm}
+ .pequip{page-break-before:always}.pequip:first-child{page-break-before:auto}
+ .ptitle{font-size:16pt;font-weight:700;background:#eee;padding:3mm;margin-bottom:2mm}
+ .prow{display:grid;grid-template-columns:7mm 1fr 85mm;gap:2mm;border-bottom:1px solid #aaa;padding:2mm 0;break-inside:avoid}
+ .pno{font-weight:700}.pru{font-weight:700;font-size:14pt}.pko{font-size:14pt;color:#444;margin-top:1mm}
+ .pstatus{font-size:14pt;margin-top:1mm}.paction{font-size:14pt;margin-top:1mm}
+ .pphotos{display:grid;grid-template-columns:1fr 1fr;gap:2mm}.pphoto img{width:100%;height:30mm;object-fit:contain;background:#f3f4f6;border:1px solid #bbb;display:block}
+ .pphoto .cap{font-size:7pt;text-align:center}.pempty{height:30mm;border:1px dashed #999;font-size:7pt;text-align:center;padding-top:12mm}
+}
+
+.bilingual{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.bilingual textarea{width:100%;min-height:70px;resize:vertical}.transbox{background:#f8fafc;border:1px solid #cbd5e1;border-radius:7px;padding:8px;white-space:pre-wrap;min-height:70px;color:#334155;font-size:13px}.translabel{font-size:12px;font-weight:700;margin-bottom:4px;color:#475569}@media(max-width:700px){.bilingual{grid-template-columns:1fr}.transbox{min-height:55px}}
+</style></head>
+<body>
+<header>
+<h1>Slag System / 모바일 사진 체크리스트</h1>
+<select id="cat"></select><select id="equip" style="margin-top:6px"></select>
+<div class="bar"><button id="prev">이전 설비</button><button id="next">다음 설비</button>
+<button class="pdf" id="pdf">📄 전체 점검결과 PDF 저장</button><button class="clearall" id="clear">현재 설비 입력 초기화</button></div>
+</header><main id="app"></main><div id="notice">📷 사진은 체크리스트에 저장됩니다. 필요한 사진만 다운로드할 수 있으며, PDF 저장 시 사진도 함께 출력됩니다.</div>
+<div id="printArea"></div>
+<script>
+const DATA={"belt": {"title": "Ленточные конвейеры / 벨트 컨베이어", "equipment": ["Ленточный конвейер №1 / 벨트 컨베이어 #1", "Ленточный конвейер №2 / 벨트 컨베이어 #2", "Ленточный конвейер №3 / 벨트 컨베이어 #3", "Ленточный конвейер №4 / 벨트 컨베이어 #4", "Ленточный конвейер №5 / 벨트 컨베이어 #5", "Ленточный конвейер №6 / 벨트 컨베이어 #6", "Ленточный конвейер №7 / 벨트 컨베이어 #7", "Ленточный конвейер №8 / 벨트 컨베이어 #8", "Ленточный конвейер №9 / 벨트 컨вейер #9", "Ленточный конвейер №10 / 벨트 컨베이어 #10", "Ленточный конвейер №11 / 벨트 컨베이어 #11", "Ленточный конвейер №13 / 벨트 컨베이어 #13", "Ленточный конвейер №14 / 벨트 컨베이어 #14", "Разгрузочный конвейер K2 / Discharge Conveyor K2", "Разгрузочный конвейер K3 / Discharge Conveyor K3", "Двухходовой конвейер №1 / Two-way Conveyor #1", "Двухходовой конвейер №2 / Two-way Conveyor #2", "Конвейер отходов №1 / Waste Conveyor #1", "Конвейер отходов №2 / Waste Conveyor #2"], "rows": [["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить падение шлака из Inlet Chute и в хвостовой части", "Inlet Chute 및 테일부 슬래그 낙하 여부 확인"], ["Проверить наличие посторонних предметов в зоне хвостового барабана", "테일 드럼부 이물질 확인"], ["Проверить работу сигнальной лампы", "경고등 작동 확인"], ["Проверить смещение и деформацию юбочного уплотнения (Skirt)", "Skirt 밀림 및 변형 여부 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить уровень масла и наличие утечек в мотор-редукторе", "모터 기어박스 오일 레벨 및 누유 점검"], ["Проверить шум головного очистителя и накопление шлака", "헤드 크리너 소음 및 슬래그 쌓임 점검"], ["Проверить наличие шлака в зоне Bend Pulley для защиты от износа", "Bend Pulley 마모 방지를 위한 슬래그 적재 확인"], ["Проверить затяжку болтов опоры головной части", "헤드부 서포터 볼트 체결 상태 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "magnet": {"title": "Магнитные сепараторы / 자력선별기", "equipment": ["Магнитный сепаратор №1 / 자력선별기 #1", "Магнитный сепаратор №2 / 자력선별기 #2", "Магнитный сепаратор №3 / 자력선별기 #3", "Магнитный сепаратор №4 / 자력선별기 #4", "Магнитный сепаратор №5 / 자력선별기 #5"], "rows": [["Проверить засорение Inlet/Outlet Chute", "Inlet/Outlet Chute 막힘 여부 확인"], ["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить наличие посторонних предметов в зоне приводной цепи", "구동 체인부 이물질 확인"], ["Проверить состояние смазки приводной цепи", "구동 체인 그리스 상태 확인"], ["Проверить посторонний шум вибрационного двигателя", "진동 모터 이상소음 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"], ["Проверить затяжку болтов", "볼트 체결 상태 확인"], ["Проверить наличие смазки на резьбовой части талрепа", "턴버클 나사부 그리스 상태 확인"], ["Проверить соединение талрепа и цепи", "턴버클-체인 연결 상태 확인"]]}, "eddy": {"title": "Вихретоковые сепараторы / 비철분리기", "equipment": ["Вихретоковый сепаратор №1 / 비철분리기 #1", "Вихретоковый сепаратор №2 / 비철분리기 #2", "Вихретоковый сепаратор №3 / 비철분리기 #3"], "rows": [["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить повреждение ленты", "벨트 손상 여부 확인"], ["Проверить неисправность двигателя магнитной системы", "자력 시스템 모터 이상 여부 확인"], ["Проверить затяжку болтов двигателя", "모터 볼트 체결 상태 확인"], ["Проверить угол пластины разделения цветных металлов", "비철분리 플레이트 각도 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "screen": {"title": "Вибрационные грохоты / 진동스크린", "equipment": ["Вибрационный грохот №1 / 진동스크린 #1", "Вибрационный грохот №2 / 진동스크린 #2", "Вибрационный грохот №3 / 진동스크린 #3", "Вибрационный грохот №4 / 진동스크린 #4", "Вибрационный грохот №5 / 진동스크린 #5"], "rows": [["Проверить затяжку болтов вибрационного двигателя", "진동 모터 볼트 체결 상태 확인"], ["Проверить повреждение сетки/экрана", "스크린 손상 여부 확인"], ["Проверить наличие посторонних предметов во входном желобе", "Inlet Chute 이물질 확인"], ["Проверить наличие посторонних предметов в выходном желобе", "Outlet Chute 이물질 확인"], ["Проверить резиновый демпфер", "고무 댐퍼 상태 확인"], ["Проверить болты вибрационной опоры", "진동 서포트 볼트 상태 확인"], ["Проверить тент и накопление шлака под ним", "타포린 및 하부 슬래그 쌓임 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "feeder": {"title": "Вибрационные питатели / 진동피더", "equipment": ["Вибрационный питатель №1 / 진동피더 #1", "Вибрационный питатель №7 / 진동피더 #7"], "rows": [["Проверить затяжку болтов вибрационного двигателя", "진동 모터 볼트 체결 상태 확인"], ["Проверить и очистить затвердевший шлак", "고착 슬래그 확인 및 청소"], ["Проверить наличие посторонних предметов во входном желобе", "Inlet Chute 이물질 확인"], ["Проверить наличие посторонних предметов в выходном желобе", "Outlet Chute 이물질 확인"], ["Проверить повреждение резинового демпфера", "고무 댐퍼 손상 여부 확인"], ["Проверить болты вибрационной опоры", "진동 서포트 볼트 상태 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "air": {"title": "Воздушный сепаратор, рукавный фильтр / 에어 세퍼레이터, 백필터", "equipment": ["Воздушный сепаратор, рукавный фильтр (Bag Filter) / 에어 세퍼레이터, 백필터"], "rows": [["Проверить сход ленты с оси", "벨트 사행 여부 확인"], ["Проверить падение шлака в хвостовой части", "테일부 슬래그 낙하 여부 확인"], ["Проверить сход ремня вентилятора с оси", "팬 벨트 사행 여부 확인"], ["Проверить работу вентилятора", "팬 작동 상태 확인"], ["Проверить утечку масла из подшипника и наличие постороннего шума", "베어링 누유 및 이상소음 확인"], ["Проверить наличие посторонних предметов на ленте", "벨트 위 이물질 확인"], ["Проверить уровень масла и наличие утечек в мотор-редукторе", "모터 기어박스 오일 레벨 및 누유 점검"], ["Проверить затяжку болтов опоры", "서포트 볼트 체결 상태 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}, "crusher": {"title": "Валковые дробилки / 롤러 크러셔", "equipment": ["Валковая дробилка №1 / 롤러 크러셔 #1", "Валковая дробилка №2 / 롤러 크러셔 #2"], "rows": [["Проверить наличие постороннего шума внутри во время работы", "운전 중 내부 이상소음 확인"], ["Проверить разлет шлака", "슬래그 비산 여부 확인"], ["Проверить состояние смазки приводной цепи", "구동 체인 그리스 상태 확인"], ["Проверить затяжку болтов", "볼트 체결 상태 확인"], ["Проверить соединительные болты валов дробилки", "크러셔 롤러 샤프트 연결 볼트 확인"], ["Проверить рабочее состояние оборудования", "운전 상태 여부 확인"]]}};;
+const DBNAME="SlagChecklistPhotos_v2",STORE="photos";let db=null,catKey=Object.keys(DATA)[0],idx=0,state={};
+function stateKey(){return "slag_state_"+catKey}function metaKey(){return "slag_meta_"+catKey}
+function hasMeaningfulState(v){return !!v && (v.status||v.action||v.actionRu||v.translation||v.time)}
+function currentEquipIndexByName(ck,name){return DATA[ck].equipment.findIndex(x=>x===name)}
+function migrateLegacyState(){
+  // 기존 버전의 설비 순서가 바뀌어도 입력 마킹이 사라지지 않도록 한 번만 안전하게 병합합니다.
+  const done=localStorage.getItem("slag_state_migration_v3");
+  if(done==="1") return;
+  const legacyBelt=[
+    "Ленточный конвейер №1 / 벨트 컨베이어 #1","Ленточный конвейер №2 / 벨트 컨베이어 #2","Ленточный конвейер №3 / 벨트 컨베이어 #3","Ленточный конвейер №4 / 벨트 컨베이어 #4","Ленточный конвейер №5 / 벨트 컨베이어 #5","Ленточный конвейер №6 / 벨트 컨베이어 #6","Ленточный конвейер №7 / 벨트 컨베이어 #7","Ленточный конвейер №8 / 벨트 컨베이어 #8","Ленточный конвейер №9 / 벨트 конвейер #9","Ленточный конвейер №10 / 벨트 컨베이어 #10","Ленточный конвейер №11 / 벨트 컨베이어 #11","Ленточный конвейер №12 / 벨트 컨베이어 #12","Ленточный конвейер №13 / 벨트 컨вейер #13","Ленточный конвейер №14 / 벨트 컨вейер #14","Разгрузочный конвейер K2 / Discharge Conveyor K2","Разгрузочный конвейер K3 / Discharge Conveyor K3","Двухходовой конвейер №1 / Two-way Conveyor #1","Конвейер отходов №1 / Waste Conveyor #1","Конвейер отходов №2 / Waste Conveyor #2"
+  ];
+  for(const ck of Object.keys(DATA)){
+    let raw; try{raw=JSON.parse(localStorage.getItem(stateKey())||"{}")}catch(e){raw={}}
+    if(!Object.keys(raw).length) continue;
+    const merged={...raw};
+    if(ck==="belt"){
+      for(let oldIdx=0;oldIdx<legacyBelt.length;oldIdx++){
+        const oldName=legacyBelt[oldIdx], ni=currentEquipIndexByName(ck,oldName);
+        if(ni<0) continue; // 삭제된 #12 등은 현재 설비에 복원하지 않음
+        for(let r=0;r<DATA[ck].rows.length;r++){
+          const src=raw[oldIdx+"_"+r];
+          const key=ni+"_"+r;
+          if(hasMeaningfulState(src) && !hasMeaningfulState(merged[key])) merged[key]=src;
+        }
+      }
+    }
+    localStorage.setItem(stateKey(),JSON.stringify(merged));
+  }
+  localStorage.setItem("slag_state_migration_v3","1");
+}
+function rowState(r){let k=idx+"_"+r;if(!state[k])state[k]={status:"",action:"",actionRu:"",translation:"",time:""};return state[k]}
+function openDB(){return new Promise((res,rej)=>{let q=indexedDB.open(DBNAME,1);q.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains(STORE))e.target.result.createObjectStore(STORE,{keyPath:"id"})};q.onsuccess=e=>{db=e.target.result;res()};q.onerror=()=>rej(q.error)})}
+function pid(c,e,r,t){return c+"_"+e+"_"+r+"_"+t}
+function getPhoto(id){return new Promise(res=>{let q=db.transaction(STORE,"readonly").objectStore(STORE).get(id);q.onsuccess=()=>res(q.result?.blob||null);q.onerror=()=>res(null)})}
+function putPhoto(id,b){return new Promise((res,rej)=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).put({id,blob:b});q.onsuccess=res;q.onerror=()=>rej(q.error)})}
+function delPhoto(id){return new Promise(res=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).delete(id);q.onsuccess=res;q.onerror=res})}
+async function migrateLegacyPhotos(){
+  const done=localStorage.getItem("slag_photo_migration_v3");
+  if(done==="1") return;
+  // 기존 벨트컨베이어 순서(#12 포함, Two-way #2 미포함)에서 현재 순서로 사진을 복사합니다.
+  const legacyBelt=[
+    "Ленточный конвейер №1 / 벨트 컨베이어 #1","Ленточный конвейер №2 / 벨트 컨베이어 #2","Ленточный конвейер №3 / 벨트 컨베이어 #3","Ленточный конвейер №4 / 벨트 컨베이어 #4","Ленточный конвейер №5 / 벨트 컨베이어 #5","Ленточный конвейер №6 / 벨트 컨베이어 #6","Ленточный конвейер №7 / 벨트 컨베이어 #7","Ленточный конвейер №8 / 벨트 컨베이어 #8","Ленточный конвейер №9 / 벨т 컨베이어 #9","Ленточный конвейер №10 / 벨트 컨베이어 #10","Ленточный конвей어 №11 / 벨트 컨베이어 #11","Ленточный кон베이어 №12 / 벨트 컨베이어 #12","Ленточный конвей어 №13 / 벨트 컨베이어 #13","Ленточный конвей어 №14 / 벨트 컨베이어 #14","Разгрузочный конвейер K2 / Discharge Conveyor K2","Разгрузочный конвейер K3 / Discharge Conveyor K3","Двухходовой конвейер №1 / Two-way Conveyor #1","Конвейер отходов №1 / Waste Conveyor #1","Конвейер отходов №2 / Waste Conveyor #2"
+  ];
+  // 사진은 현재 목록과 같은 순서인 경우를 우선 보존하고, #12 삭제/#2 추가로 밀린 항목만 보정합니다.
+  const currentPhotoKeys=[];
+  for(const ck of Object.keys(DATA)){
+    for(let e=0;e<DATA[ck].equipment.length;e++) for(let r=0;r<DATA[ck].rows.length;r++) for(const t of ["before","after"]) currentPhotoKeys.push(pid(ck,e,r,t));
+  }
+  if(DATA.belt){
+    for(let oldIdx=0;oldIdx<legacyBelt.length;oldIdx++){
+      const name=legacyBelt[oldIdx], ni=currentEquipIndexByName("belt",name);
+      if(ni<0) continue;
+      for(let r=0;r<DATA.belt.rows.length;r++) for(const t of ["before","after"]){
+        const oldId=pid("belt",oldIdx,r,t), newId=pid("belt",ni,r,t);
+        if(oldId===newId) continue;
+        const existing=await getPhoto(newId);
+        const oldBlob=await getPhoto(oldId);
+        if(!existing && oldBlob) await putPhoto(newId,oldBlob);
+      }
+    }
+  }
+  localStorage.setItem("slag_photo_migration_v3","1");
+}
+function load(){migrateLegacyState();try{state=JSON.parse(localStorage.getItem(stateKey())||"{}")}catch(e){state={}}}
+function save(){localStorage.setItem(stateKey(),JSON.stringify(state));let m={date:document.getElementById("date")?.value||"",checker:document.getElementById("checker")?.value||""};localStorage.setItem(metaKey(),JSON.stringify(m))}
+function fillCats(){let s=document.getElementById("cat");s.innerHTML=Object.keys(DATA).map(k=>`<option value="${k}" ${k===catKey?"selected":""}>${DATA[k].title}</option>`).join("")}
+function fillEquip(){let s=document.getElementById("equip");s.innerHTML=DATA[catKey].equipment.map((x,i)=>`<option value="${i}" ${i===idx?"selected":""}>${x}</option>`).join("")}
+async function render(){fillCats();fillEquip();let d=DATA[catKey],m=JSON.parse(localStorage.getItem(metaKey())||"{}");
+let h=`<section class="equip"><h2>${d.title}</h2><div class="meta"><div><label>점검일 / Дата</label><input id="date" type="date" value="${m.date||""}"></div><div><label>점검자 / Проверяющий</label><input id="checker" value="${m.checker||""}" placeholder="이름"></div></div>`;
+d.rows.forEach((it,r)=>{let s=rowState(r);h+=`<div class="item"><div><div class="rowtop"><div class="no">${r+1}</div><div><div class="ru">${it[0]}</div><div class="ko">${it[1]}</div></div></div>
+<div class="status"><button class="ok ${s.status==="ok"?"active":""}" data-st="ok" data-r="${r}">정상 ○</button><button class="dev ${s.status==="dev"?"active":""}" data-st="dev" data-r="${r}">이상 △</button><button class="act ${s.status==="act"?"active":""}" data-st="act" data-r="${r}">조치 X</button></div></div>
+<div class="photos"><div class="photo" id="b${r}"><div class="pl">문제 발생 사진 / BEFORE</div><input id="before${r}" type="file" accept="image/*" capture="environment" hidden><input id="beforeGallery${r}" type="file" accept="image/*" hidden><button class="cam" data-p="before" data-r="${r}">📷 사진 촬영</button><button class="gallery" data-g="beforeGallery" data-r="${r}">🖼️ 갤러리에서 선택</button></div>
+<div class="photo" id="a${r}"><div class="pl">조치 후 사진 / AFTER</div><input id="after${r}" type="file" accept="image/*" capture="environment" hidden><input id="afterGallery${r}" type="file" accept="image/*" hidden><button class="cam" data-p="after" data-r="${r}">📷 사진 촬영</button><button class="gallery" data-g="afterGallery" data-r="${r}">🖼️ 갤러리에서 선택</button></div></div>
+<div class="bilingual"><div><div class="translabel">🇰🇷 한국어 조치내용</div><textarea data-a="${r}" placeholder="한국어로 입력하세요.">${s.action||""}</textarea></div><div><div class="translabel">🇷🇺 Русский / 러시아어 조치내용</div><textarea data-ar="${r}" placeholder="Введите на русском языке.">${s.actionRu||""}</textarea></div></div><div class="time">점검시간 / Время проверки: <input type="time" data-t="${r}" value="${s.time||""}"></div></div>`});
+h+="</section>";document.getElementById("app").innerHTML=h;
+document.getElementById("date").onchange=save;document.getElementById("checker").oninput=save;
+document.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{const st=rowState(+b.dataset.r);st.status=(st.status===b.dataset.st)?"":b.dataset.st;save();render()});
+document.querySelectorAll("[data-a]").forEach(x=>{
+ let composing=false, timer=null;
+ x.addEventListener("compositionstart",()=>{composing=true;});
+ x.addEventListener("compositionend",()=>{composing=false; const r=+x.dataset.a; rowState(r).action=x.value; clearTimeout(timer); timer=setTimeout(()=>translateLocal(x.value,r,"kr"),250); save();});
+ x.addEventListener("input",()=>{const r=+x.dataset.a; rowState(r).action=x.value; clearTimeout(timer); if(!composing) timer=setTimeout(()=>translateLocal(x.value,r,"kr"),250); save();});
+});
+document.querySelectorAll("[data-ar]").forEach(x=>{
+ let composing=false, timer=null;
+ x.addEventListener("compositionstart",()=>{composing=true;});
+ x.addEventListener("compositionend",()=>{composing=false; const r=+x.dataset.ar; rowState(r).actionRu=x.value; clearTimeout(timer); timer=setTimeout(()=>translateLocal(x.value,r,"ru"),250); save();});
+ x.addEventListener("input",()=>{const r=+x.dataset.ar; rowState(r).actionRu=x.value; clearTimeout(timer); if(!composing) timer=setTimeout(()=>translateLocal(x.value,r,"ru"),250); save();});
+});
+document.querySelectorAll("[data-t]").forEach(x=>x.onchange=()=>{rowState(+x.dataset.t).time=x.value;save()});
+document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>document.getElementById(b.dataset.p+b.dataset.r).click());
+document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>document.getElementById(b.dataset.g+b.dataset.r).click());
+document.querySelectorAll('input[type="file"]').forEach(x=>x.onchange=()=>takePhoto(x));await restore();
+}
+const KR_RU = [
+["샘플","образец"],
+["문제점 발견했으니 조치 필요함","Обнаружена проблема, требуется принять меры."],
+["청소 필요함","Требуется очистка."],
+["청소 필요","Требуется очистка."],
+["조치 필요함","Требуется принять меры."],
+["조치 필요","Требуется принять меры."],
+["확인 필요함","Требуется проверка."],
+["확인 필요","Требуется проверка."],
+["사진 촬영","фотосъемка"],
+["사진","фото"],
+["조치 내용","содержание выполненных мер"],
+["문제점","проблема"],
+["문제점 발견했으니 조치 필요함","Обнаружена проблема, требуется принять меры."],
+["문제점이 발견되어 조치가 필요합니다","Обнаружена проблема, требуется принять меры."],
+["문제점 발견","обнаружена проблема"],
+["조치가 필요합니다","требуется принять меры"],
+["조치 필요함","требуется принять меры"],
+["청소가 필요합니다","требуется очистка"],
+["청소 필요함","требуется очистка"],
+["청소가 필요합니다.","требуется очистка."],
+["청소 완료했습니다","очистка завершена"],
+["청소 완료","очистка завершена"],
+["슬래그를 제거해야 합니다","необходимо удалить шлак"],
+["슬래그 제거가 필요합니다","требуется удалить шлак"],
+["슬래그 제거 필요","требуется удалить шлак"],
+["막힘이 발생했습니다","произошло засорение"],
+["막힘을 제거해야 합니다","необходимо устранить засорение"],
+["막힘 제거가 필요합니다","требуется устранить засорение"],
+["벨트 사행이 심합니다","сход ленты сильный"],
+["벨트 사행이 발생했습니다","произошёл сход ленты"],
+["벨트 사행 조정이 필요합니다","требуется отрегулировать сход ленты"],
+["벨트 사행을 조정했습니다","отрегулировали сход ленты"],
+["벨트가 손상되었습니다","лента повреждена"],
+["벨트 손상이 발견되었습니다","обнаружено повреждение ленты"],
+["벨트 교체가 필요합니다","требуется замена ленты"],
+["벨트를 교체했습니다","заменили ленту"],
+["베어링 이상이 발견되었습니다","обнаружена неисправность подшипника"],
+["베어링 점검이 필요합니다","требуется проверка подшипника"],
+["베어링을 교체했습니다","заменили подшипник"],
+["베어링 교체가 필요합니다","требуется замена подшипника"],
+["베어링에 이상이 없습니다","подшипник в нормальном состоянии"],
+["오일 누유가 발견되었습니다","обнаружена утечка масла"],
+["오일 누유가 있습니다","имеется утечка масла"],
+["오일 누유가 없습니다","утечки масла нет"],
+["오일을 보충했습니다","долили масло"],
+["오일 보충이 필요합니다","требуется долить масло"],
+["그리스를 주입했습니다","нанесли смазку"],
+["그리스 주입이 필요합니다","требуется смазка"],
+["체인에 그리스를 주입했습니다","смазали цепь"],
+["체인에 그리스 주입이 필요합니다","требуется смазать цепь"],
+["이상 소음이 발생했습니다","появился посторонний шум"],
+["이상 소음이 발견되었습니다","обнаружен посторонний шум"],
+["이상 소음이 없습니다","постороннего шума нет"],
+["이상 소음 점검이 필요합니다","требуется проверить посторонний шум"],
+["볼트가 풀렸습니다","болт ослаблен"],
+["볼트 체결이 필요합니다","требуется затянуть болты"],
+["볼트를 조였습니다","затянули болты"],
+["볼트 체결 상태가 양호합니다","болты затянуты, состояние нормальное"],
+["스크린이 손상되었습니다","сито повреждено"],
+["스크린 손상이 발견되었습니다","обнаружено повреждение сита"],
+["스크린 교체가 필요합니다","требуется замена сита"],
+["스크린을 교체했습니다","заменили сито"],
+["모터 이상이 발견되었습니다","обнаружена неисправность двигателя"],
+["모터를 점검했습니다","проверили двигатель"],
+["모터 점검이 필요합니다","требуется проверить двигатель"],
+["기어박스 이상이 발견되었습니다","обнаружена неисправность мотор-редуктора"],
+["기어박스를 점검했습니다","проверили мотор-редуктор"],
+["기어박스 점검이 필요합니다","требуется проверить мотор-редуктор"],
+["먼지가 많이 발생합니다","образуется много пыли"],
+["먼지 제거가 필요합니다","требуется удалить пыль"],
+["먼지를 제거했습니다","удалили пыль"],
+["이물질이 발견되었습니다","обнаружен посторонний предмет"],
+["이물질을 제거했습니다","удалили посторонний предмет"],
+["이물질 제거가 필요합니다","требуется удалить посторонний предмет"],
+["누유가 발견되었습니다","обнаружена утечка"],
+["수리가 필요합니다","требуется ремонт"],
+["수리했습니다","отремонтировали"],
+["조정이 필요합니다","требуется регулировка"],
+["조정했습니다","отрегулировали"],
+["교체가 필요합니다","требуется замена"],
+["교체했습니다","заменили"],
+["점검이 필요합니다","требуется проверка"],
+["점검 완료했습니다","проверка завершена"],
+["점검 완료","проверка завершена"],
+["문제 없습니다","проблем нет"],
+["이상 없습니다","отклонений не обнаружено"],
+["정상입니다","состояние нормальное"],
+["작업 중입니다","работа выполняется"],
+["작업 완료했습니다","работа завершена"],
+["조치 완료했습니다","меры выполнены"],
+["조치 완료","меры выполнены"],
+["확인했습니다","проверили"],
+["확인 완료","проверка завершена"],
+["벨트 사행","сход ленты"],
+["벨트가 사행","лента сошла с оси"],
+["청소했습니다","выполнили очистку"],
+["청소 완료","очистка завершена"],
+["이상 없음","отклонений не обнаружено"],
+["볼트 체결","затяжка болтов"],
+["베어링 점검","проверка подшипника"],
+["오일 누유","утечка масла"],
+["이상 소음","посторонний шум"],
+["벨트 교체","замена ленты"],
+["스크린 교체","замена сита"],
+["슬래그를 제거했습니다","удалили шлак"],
+["슬래그 제거","удаление шлака"],
+["막힘을 제거했습니다","устранили засорение"],
+["막힘 제거","устранение засорения"],
+["조치 완료","меры выполнены"],
+["조치 필요","требуются меры"],
+["정상","норма"],
+["이상","отклонение"],
+["그리스 주입","смазка"],
+["기어박스 오일","масло мотор-редуктора"],
+["먼지 제거","удаление пыли"],
+["작업 완료","работа завершена"]
+];
+// 현장 점검에서 자주 사용하는 조치 문장을 추가합니다.
+KR_RU.push(
+["문제점이 발견되어 조치가 필요함","Обнаружена проблема, требуется принять меры."],
+["문제점 발견되어 조치 필요","Обнаружена проблема, требуется принять меры."],
+["문제점 발견, 조치 필요","Обнаружена проблема, требуется принять меры."],
+["조치가 필요함","требуется принять меры"],["조치 필요합니다","требуется принять меры"],
+["청소가 필요함","требуется очистка"],["청소 필요","требуется очистка"],
+["청소가 필요합니다","требуется очистка"],["청소를 실시했습니다","выполнили очистку"],
+["청소 실시","выполнили очистку"],["청소 완료했습니다","очистка завершена"],
+["슬래그 청소가 필요합니다","требуется очистка шлака"],["슬래그 청소 필요","требуется очистка шлака"],
+["슬래그가 쌓여 있습니다","накопился шлак"],["슬래그가 많이 쌓였습니다","накопилось много шлака"],
+["슬래그를 제거해야 합니다","необходимо удалить шлак"],["슬래그 제거했습니다","удалили шлак"],
+["막힘이 확인되었습니다","обнаружено засорение"],["막힘 확인","обнаружено засорение"],
+["막힘이 발생했습니다","произошло засорение"],["막힘 제거 필요","требуется устранить засорение"],
+["막힘을 제거했습니다","устранили засорение"],["막힘을 제거해야 합니다","необходимо устранить засорение"],
+["벨트 사행이 확인되었습니다","обнаружен сход ленты"],["벨트 사행 조치 필요","требуется устранить сход ленты"],
+["벨트 사행 조정 필요","требуется отрегулировать сход ленты"],["벨트 사행 조정했습니다","отрегулировали сход ленты"],
+["벨트가 한쪽으로 쏠립니다","лента смещается в одну сторону"],["벨트가 심하게 사행합니다","лента сильно смещается"],
+["벨트 손상 발견","обнаружено повреждение ленты"],["벨트 손상 조치 필요","требуется устранить повреждение ленты"],
+["벨트 교체 필요","требуется замена ленты"],["벨트 교체했습니다","заменили ленту"],
+["베어링 이상 발견","обнаружена неисправность подшипника"],["베어링 이상 조치 필요","требуется проверить подшипник"],
+["베어링 교체 필요","требуется замена подшипника"],["베어링 교체했습니다","заменили подшипник"],
+["베어링에 이상이 없습니다","подшипник в нормальном состоянии"],["베어링 상태 양호","подшипник в нормальном состоянии"],
+["누유가 확인되었습니다","обнаружена утечка масла"],["오일 누유 조치 필요","требуется устранить утечку масла"],
+["오일 누유를 조치했습니다","устранили утечку масла"],["오일 보충 필요","требуется долить масло"],
+["오일을 보충했습니다","долили масло"],["그리스 주입 필요","требуется смазка"],["그리스를 주입했습니다","нанесли смазку"],
+["체인 그리스 주입 필요","требуется смазать цепь"],["체인에 그리스를 주입했습니다","смазали цепь"],
+["이상 소음이 확인되었습니다","обнаружен посторонний шум"],["이상 소음 조치 필요","требуется устранить посторонний шум"],
+["이상 소음을 조치했습니다","устранили посторонний шум"],["소음이 없습니다","постороннего шума нет"],
+["볼트 풀림이 확인되었습니다","обнаружено ослабление болтов"],["볼트 체결 필요","требуется затянуть болты"],
+["볼트를 조였습니다","затянули болты"],["볼트가 풀려 있습니다","болты ослаблены"],
+["모터 이상이 확인되었습니다","обнаружена неисправность двигателя"],["모터 점검 필요","требуется проверить двигатель"],
+["모터를 점검했습니다","проверили двигатель"],["기어박스 점검 필요","требуется проверить мотор-редуктор"],
+["기어박스를 점검했습니다","проверили мотор-редуктор"],["기어박스 오일 보충 필요","требуется долить масло в мотор-редуктор"],
+["먼지가 많이 발생합니다","образуется много пыли"],["먼지 제거 필요","требуется удалить пыль"],["먼지를 제거했습니다","удалили пыль"],
+["이물질이 발견되었습니다","обнаружен посторонний предмет"],["이물질 제거 필요","требуется удалить посторонний предмет"],["이물질을 제거했습니다","удалили посторонний предмет"],
+["수리가 필요합니다","требуется ремонт"],["수리 필요","требуется ремонт"],["수리했습니다","отремонтировали"],
+["조정이 필요합니다","требуется регулировка"],["조정 필요","требуется регулировка"],["조정했습니다","отрегулировали"],
+["교체가 필요합니다","требуется замена"],["교체 필요","требуется замена"],["교체했습니다","заменили"],
+["점검이 필요합니다","требуется проверка"],["점검 필요","требуется проверка"],["점검 완료했습니다","проверка завершена"],
+["확인했습니다","проверили"],["확인 완료","проверка завершена"],["문제 없습니다","проблем нет"],
+["이상 없습니다","отклонений не обнаружено"],["정상입니다","состояние нормальное"],
+["작업 완료했습니다","работа завершена"],["조치 완료했습니다","меры выполнены"],["조치 완료","меры выполнены"]
+);
+KR_RU.push(
+["청소 조치","Меры по очистке"],
+["청소 조치 필요","Требуются меры по очистке."],
+["청소 조치가 필요합니다","Требуются меры по очистке."],
+["청소 조치 완료","Меры по очистке выполнены."],
+["청소 조치 완료했습니다","Меры по очистке выполнены."],
+["청소 조치했습니다","Выполнили очистку."],
+["조치 필요함","Требуется принять меры."],
+["조치가 필요함","Требуется принять меры."],
+["청소가 필요함","Требуется очистка."],
+["청소했습니다","Выполнили очистку."],
+["청소 완료했습니다","Очистка завершена."],
+["문제 발견","Обнаружена проблема."],
+["문제 발견하여 조치 필요","Обнаружена проблема, требуется принять меры."],
+["확인 후 조치 필요","Требуется проверить и принять меры."],
+["추가 점검 필요","Требуется дополнительная проверка."],
+["재조정 필요","Требуется повторная регулировка."],
+["교체 후 정상","После замены состояние нормальное."],
+["청소 후 정상","После очистки состояние нормальное."]
+);
+// 기본 현장 단어/짧은 표현도 입력 즉시 대응되도록 추가
+const SAFETY_KR_RU=[
+ ["안전커버 미설치","Защитный кожух не установлен."],
+ ["안전 커버 미설치","Защитный кожух не установлен."],
+ ["안전커버가 미설치되어 있습니다","Защитный кожух не установлен."],
+ ["안전커버 설치 필요","Требуется установить защитный кожух."],
+ ["안전커버 설치가 필요합니다","Требуется установить защитный кожух."],
+ ["안전커버 설치","Установить защитный кожух."],
+ ["보호커버 미설치","Защитный кожух не установлен."],
+ ["보호커버 설치 필요","Требуется установить защитный кожух."],
+ ["안전장치 미설치","Защитное устройство не установлено."],
+ ["안전장치 설치 필요","Требуется установить защитное устройство."],
+ ["안전커버 파손","Защитный кожух поврежден."],
+ ["안전커버 손상","Поврежден защитный кожух."],
+ ["안전커버 수리 필요","Требуется ремонт защитного кожуха."],
+ ["안전커버 교체 필요","Требуется замена защитного кожуха."],
+ ["안전커버 볼트 미체결","Болты защитного кожуха не затянуты."],
+ ["안전커버 볼트 체결 필요","Требуется затянуть болты защитного кожуха."]
+];
+KR_RU.push(...SAFETY_KR_RU);
+const COMMON_KR_RU=[
+ ["청소","Очистка"],["청소 필요","Требуется очистка"],["청소 완료","Очистка завершена"],
+ ["조치","Меры"],["조치 필요","Требуются меры"],["조치 완료","Меры выполнены"],
+ ["점검","Проверка"],["점검 필요","Требуется проверка"],["점검 완료","Проверка завершена"],
+ ["확인","Проверка"],["확인 필요","Требуется проверить"],
+ ["문제","Проблема"],["문제점","Проблема"],["발견","Обнаружено"],
+ ["수리","Ремонт"],["수리 필요","Требуется ремонт"],
+ ["교체","Замена"],["교체 필요","Требуется замена"],["교체 완료","Замена выполнена"],
+ ["조정","Регулировка"],["조정 필요","Требуется регулировка"],
+ ["보수","Ремонт"],["보수 필요","Требуется ремонт"],
+ ["이상","Неисправность"],["이상 없음","Неисправностей нет"],["정상","Нормально"],
+ ["누유","Утечка масла"],["누유 확인","Обнаружена утечка масла"],
+ ["소음","Шум"],["이상 소음","Посторонний шум"],
+ ["볼트","Болт"],["볼트 체결","Затяжка болтов"],["볼트 체결 필요","Требуется затянуть болты"],
+ ["벨트","Лента"],["벨트 사행","Сход ленты"],["벨트 손상","Повреждение ленты"],
+ ["슬래그","Шлак"],["슬래그 제거","Удаление шлака"],["슬래그 제거 필요","Требуется удалить шлак"],
+ ["막힘","Засорение"],["막힘 제거","Устранение засорения"],["막힘 제거 필요","Требуется устранить засорение"],
+ ["이물질","Посторонний предмет"],["이물질 제거","Удаление постороннего предмета"],
+ ["그리스","Смазка"],["윤활","Смазка"],["윤활 필요","Требуется смазка"],
+ ["오일","Масло"],["오일 보충","Долив масла"],["오일 교체","Замена масла"],
+ ["정상 작동","Работает нормально"],["작동 확인","Проверить работу"]
+];
+KR_RU.push(...COMMON_KR_RU);
+const RU_KR=KR_RU.map(x=>[x[1],x[0]]);
+function normalizePhraseText(t){return (t||"").replace(/[\u00A0]/g," ").replace(/[ \t]+/g," ").trim();}
+function translateByPhrases(text,pairs){
+ const raw=(text||"").replace(/\u00A0/g," ").trim();
+ if(!raw) return "";
+ const exact=pairs.find(([a])=>normalizePhraseText(a).toLowerCase()===normalizePhraseText(raw).toLowerCase());
+ if(exact) return exact[1];
+ let out=raw.replace(/[ \t]+/g," ");
+ const sorted=[...pairs].sort((a,b)=>normalizePhraseText(b[0]).length-normalizePhraseText(a[0]).length);
+ for(const [a,b] of sorted){
+   const aa=normalizePhraseText(a);
+   if(!aa) continue;
+   out=out.split(aa).join(b);
+ }
+ return out;
+}
+function translateLocal(text,r,source){
+ const v=normalizePhraseText(text);
+ const st=rowState(r);
+ if(source==="kr"){
+   if(!v){st.actionRu="";const el=document.querySelector(`[data-ar="${r}"]`);if(el)el.value="";save();return;}
+   const out=translateByPhrases(v,KR_RU);
+   const el=document.querySelector(`[data-ar="${r}"]`);
+   if(el){el.value=out;st.actionRu=out;}
+ }else{
+   if(!v){st.action="";const el=document.querySelector(`[data-a="${r}"]`);if(el)el.value="";save();return;}
+   const out=translateByPhrases(v,RU_KR);
+   const el=document.querySelector(`[data-a="${r}"]`);
+   if(el){el.value=out;st.action=out;}
+ }
+ save();
+}
+async function takePhoto(inp){
+ if(!inp.files?.[0])return;
+ let file=inp.files[0], r=+inp.id.match(/\d+$/)[0], t=inp.id.startsWith("before")?"before":"after";
+ await putPhoto(pid(catKey,idx,r,t),file);
+ await render();
+}
+async function restore(){for(let r=0;r<DATA[catKey].rows.length;r++)for(let t of ["before","after"]){let b=await getPhoto(pid(catKey,idx,r,t));if(!b)continue;let u=URL.createObjectURL(b),box=document.getElementById((t==="before"?"b":"a")+r);box.innerHTML=`<div class="pl">${t==="before"?"문제 발생 사진 / BEFORE":"조치 후 사진 / AFTER"}</div><img src="${u}"><button class="del" data-del="${t}" data-r="${r}">사진 삭제</button><input id="${t}${r}" type="file" accept="image/*" capture="environment" hidden><input id="${t}Gallery${r}" type="file" accept="image/*" hidden><button class="cam" data-re="${t}" data-r="${r}">📷 다시 촬영</button><button class="gallery" data-reg="${t}Gallery" data-r="${r}">🖼️ 갤러리에서 다시 선택</button>`;box.querySelector("[data-del]").onclick=async()=>{await delPhoto(pid(catKey,idx,r,t));render()};box.querySelector("[data-re]").onclick=()=>document.getElementById(t+r).click();box.querySelector("[data-reg]").onclick=()=>document.getElementById(t+"Gallery"+r).click();box.querySelectorAll('input[type=file]').forEach(x=>x.onchange=e=>takePhoto(e.target))}}
+async function blobDataURL(blob){
+ return new Promise((resolve,reject)=>{
+  const fr=new FileReader();
+  fr.onload=()=>resolve(fr.result);
+  fr.onerror=reject;
+  fr.readAsDataURL(blob);
+ });
+}
+function escPrint(x){
+ return String(x||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+async function printPDF(){
+ const meta=JSON.parse(localStorage.getItem(metaKey())||"{}");
+ let html=`<!doctype html><html lang="ko"><head><meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <title>Slag System - 점검 결과</title>
+ <style>
+ @page{size:A4 portrait;margin:0}
+ *{box-sizing:border-box}
+ html,body{margin:0;padding:0;width:210mm;font-family:Arial,"Noto Sans KR",sans-serif;color:#111}
+ body{width:210mm}
+ .top{display:none}
+ .equip{width:210mm;height:297mm;margin:0;padding:5mm;box-sizing:border-box;page-break-before:auto;page-break-after:always;break-before:page;break-after:page;overflow:hidden}
+ .equip:first-of-type{page-break-before:auto;break-before:auto}
+ .equip:last-of-type{page-break-after:auto;break-after:auto}
+ .etitle{font-size:11pt;font-weight:700;border:1px solid #222;padding:1.2mm 1.5mm;margin-bottom:1mm}
+ .emeta{font-size:7pt;margin:0 0 1mm}
+ table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12pt}
+ th,td{border:.5px solid #555;padding:.55mm;vertical-align:middle}
+ th{font-size:12pt;text-align:center;font-weight:700;height:8mm}
+ .no{width:6mm;text-align:center}.item{width:72mm}.mark{width:11mm;text-align:center}.time{width:16mm}.action{width:66mm}
+ .item .ru{font-weight:700;font-size:12pt;line-height:1.05}.item .ko{font-size:12pt;color:#444;line-height:1.05;margin-top:.4mm}
+ .markcell{font-size:12pt;text-align:center;height:14mm}.timecell{height:14mm;font-size:12pt}.actioncell{height:14mm;white-space:pre-wrap;font-size:12pt;line-height:1.05}
+ .pics{display:flex;gap:1mm;align-items:center;margin-top:.5mm}.pics img{width:19mm;height:12mm;object-fit:contain;background:#f3f4f6;border:1px solid #888;display:block}.pcap{font-size:6pt;text-align:center}
+ .foot{font-size:10pt;margin-top:1mm}
+ .printbtn{position:fixed;right:8px;top:8px;padding:7px 10px;border:0;border-radius:5px;background:#166534;color:#fff;font-weight:700}
+ @media print{.printbtn{display:none}}
+ </style></head><body>
+ <button class="printbtn" onclick="window.print()">📄 PDF로 저장 / 인쇄</button>
+ <div class="top"><h1>Slag System — 점검 결과 / Результаты проверки</h1>
+ <div class="meta">점검일 / Дата: ${escPrint(meta.date)}　　점검자 / Проверяющий: ${escPrint(meta.checker)}</div></div>`;
+
+ for(const ck of Object.keys(DATA)){
+   const d=DATA[ck];
+   let saved={};
+   try{saved=JSON.parse(localStorage.getItem("slag_state_"+ck)||"{}")}catch(e){}
+   for(let e=0;e<d.equipment.length;e++){
+     html+=`<section class="equip"><div class="etitle">${escPrint(d.equipment[e])}</div>
+     <div class="emeta">점검일 / Дата: ${escPrint(meta.date)}　　점검자 / Проверяющий: ${escPrint(meta.checker)}</div>
+     <table><thead><tr>
+       <th class="no">№</th><th class="item">Проверяемый пункт / 점검 항목</th>
+       <th class="mark">Норма ○<br>정상 ○</th><th class="mark">Отклонение △<br>이상 △</th>
+       <th class="mark">Мера X<br>조치 X</th><th class="time">Время проверки<br>점검시간</th>
+       <th class="action">Содержание выполненных мер / 조치내용<br>사진 / Фото</th>
+     </tr></thead><tbody>`;
+     for(let r=0;r<d.rows.length;r++){
+       const st=saved[e+"_"+r]||{};
+       const bb=await getPhoto(pid(ck,e,r,"before"));
+       const aa=await getPhoto(pid(ck,e,r,"after"));
+       const bu=bb?await blobDataURL(bb):"";
+       const au=aa?await blobDataURL(aa):"";
+       html+=`<tr>
+        <td class="no">${r+1}</td>
+        <td class="item"><div class="ru">${escPrint(d.rows[r][0])}</div><div class="ko">${escPrint(d.rows[r][1])}</div></td>
+        <td class="markcell">${st.status==="ok"?"●":""}</td>
+        <td class="markcell">${st.status==="dev"?"●":""}</td>
+        <td class="markcell">${st.status==="act"?"●":""}</td>
+        <td class="timecell">${escPrint(st.time)}</td>
+        <td class="actioncell">${st.action?`🇰🇷 ${escPrint(st.action)}<br>`:""}${st.actionRu?`🇷🇺 ${escPrint(st.actionRu)}`:""}
+          ${(bu||au)?`<div class="pics">${bu?`<div><img src="${bu}"><div class="pcap">BEFORE / 문제 발생</div></div>`:""}${au?`<div><img src="${au}"><div class="pcap">AFTER / 조치 후</div></div>`:""}</div>`:""}
+        </td></tr>`;
+     }
+     html+=`</tbody></table><div class="foot">정상 ○ / 이상 △ / 조치 X　　※ 저장된 BEFORE / AFTER 사진은 조치내용란에 함께 출력됩니다.</div></section>`;
+   }
+ }
+ html+="</body></html>";
+ const w=window.open("","_blank");
+ if(!w){alert("새 창이 차단되었습니다. 브라우저에서 팝업/새 창을 허용해 주세요.");return;}
+ w.document.open();w.document.write(html);w.document.close();
+}
+document.getElementById("cat").onchange=async e=>{catKey=e.target.value;idx=0;load();await render()};
+document.getElementById("equip").onchange=async e=>{idx=+e.target.value;load();await render()};
+document.getElementById("prev").onclick=async()=>{idx=(idx-1+DATA[catKey].equipment.length)%DATA[catKey].equipment.length;load();await render()};
+document.getElementById("next").onclick=async()=>{idx=(idx+1)%DATA[catKey].equipment.length;load();await render()};
+document.getElementById("pdf").onclick=printPDF;
+document.getElementById("clear").onclick=async()=>{if(!confirm("현재 설비의 입력과 사진을 삭제할까요?"))return;localStorage.removeItem(stateKey());for(let r=0;r<DATA[catKey].rows.length;r++)for(let t of ["before","after"])await delPhoto(pid(catKey,idx,r,t));load();render()};
+window.onafterprint=()=>{document.body.classList.remove("printing");document.getElementById("printArea").innerHTML=""};
+(async()=>{await openDB();await migrateLegacyPhotos();load();await render()})();
+</script></body></html>
